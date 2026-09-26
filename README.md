@@ -1,12 +1,26 @@
 # sentinel-tx
 
+[![build](https://github.com/awshas/sentinel-tx/actions/workflows/build.yml/badge.svg)](https://github.com/awshas/sentinel-tx/actions/workflows/build.yml)
+
 ## Description
 
-xxxxxxxxx
+Sentinel TX-100: bare-metal firmware for a 3-wire industrial process
+transmitter on the STM32G474RE (NUCLEO-G474RE). It reads a Pt1000 RTD
+ratiometrically, linearises and filters the measurement, drives a 0-10 V
+analog output and offers a UART service console. No vendor HAL: startup code,
+linker script and drivers are written from the reference manual, with CMSIS
+headers for register definitions only. Requirements are in
+[docs/requirements.md](docs/requirements.md).
+
+Status: boot path (linker script, startup code, vector table) and build
+system done; peripheral bring-up in progress.
 
 ## Development Setup
-1. git config core.hooksPath .githooks
-2. toolchain
+1. Clone with the CMSIS submodules:
+   `git clone --recurse-submodules git@github.com:awshas/sentinel-tx.git`
+   (in an existing clone: `git submodule update --init`)
+2. `git config core.hooksPath .githooks`
+3. Install the toolchain listed in [docs/toolchain.md](docs/toolchain.md)
 
 ## Naming Conventions
 
