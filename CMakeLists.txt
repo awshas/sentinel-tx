@@ -14,13 +14,17 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
+# Writes build/compile_commands.json: the exact flags, include paths (CMSIS)
+# and defines (STM32G474xx) of every file, so the editor's IntelliSense/clangd
+# resolves register names the same way the compiler does.
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 include(cmake/warnings.cmake)
 
 set(LINKER_SCRIPT "${CMAKE_SOURCE_DIR}/linker/STM32G474RETX_FLASH.ld")
 
 add_executable(sentinel-tx
     src/main.c
-    src/bsp/clock.c
     src/sys/startup_stm32g474.s
 )
 
@@ -46,11 +50,13 @@ target_compile_options(sentinel-tx PRIVATE
 
 target_link_options(sentinel-tx PRIVATE
     -T${LINKER_SCRIPT}
+    # No crt0/crti/crtbegin from the toolchain: startup_stm32g474.s is the only
+    # boot code. It also supplies the empty _init/_fini that newlib's
+    # __libc_init_array calls.
     -nostartfiles
     -Wl,--gc-sections
     -Wl,-Map=$<TARGET_FILE_DIR:sentinel-tx>/sentinel-tx.map
     -Wl,--print-memory-usage
-    -Wl,--no-warn-rwx-segments
 )
 
 # LINK_DEPENDS: CMake does not treat the linker script as a build input.

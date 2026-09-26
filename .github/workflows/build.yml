@@ -1,0 +1,113 @@
+# Builds the firmware from a clean checkout on every pull request and every
+# push to main, so a change that only builds on one machine cannot merge.
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push to the same branch cancels the run it replaces.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Same toolchain as the development machine. Keep in sync with docs/toolchain.md.
+  ARM_GCC_VERSION: 15.3.rel1
+  ARM_GCC_SHA256: 563bebb2b97d53382b956d6ee1fe61e2cae26699901417234a37df505ef9b5fa
+
+jobs:
+  format:
+    name: clang-format
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      # Ubuntu 24.04 package = clang-format 18, the version on the dev machine.
+      # Formatting output differs between clang-format versions.
+      - name: Install clang-format
+        run: sudo apt-get update -q && sudo apt-get install -y -q clang-format
+
+      - name: Check formatting
+        run: |
+          clang-format --version
+          git ls-files -z -- '*.c' '*.h' | xargs -0 -r clang-format --dry-run --Werror
+
+  firmware:
+    name: firmware (Debug + Release)
+    runs-on: ubuntu-24.04
+    steps:
+      # The CMSIS headers are git submodules; without them nothing compiles.
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      - name: Restore toolchain cache
+        id: toolchain-cache
+        uses: actions/cache@v5
+        with:
+          path: ~/arm-gnu-toolchain
+          key: arm-gnu-toolchain-${{ env.ARM_GCC_VERSION }}-${{ runner.os }}-${{ runner.arch }}
+
+      - name: Download and verify the Arm GNU Toolchain
+        if: steps.toolchain-cache.outputs.cache-hit != 'true'
+        run: |
+          name="arm-gnu-toolchain-${ARM_GCC_VERSION}-x86_64-arm-none-eabi.tar.xz"
+          url="https://gitlab.arm.com/api/v4/projects/tooling%2Fgnu-toolchains-for-arm/packages/generic/gnu-toolchain/${ARM_GCC_VERSION}/${name}"
+          curl --fail --location --retry 3 --silent --show-error --output "$RUNNER_TEMP/$name" "$url"
+          # Refuse to build with anything but the exact tarball in docs/toolchain.md.
+          echo "${ARM_GCC_SHA256}  $RUNNER_TEMP/$name" | sha256sum --check
+          mkdir -p ~/arm-gnu-toolchain
+          tar -xJf "$RUNNER_TEMP/$name" -C ~/arm-gnu-toolchain --strip-components=1
+
+      - name: Install Ninja
+        run: sudo apt-get update -q && sudo apt-get install -y -q ninja-build
+
+      - name: Tool versions
+        run: |
+          ~/arm-gnu-toolchain/bin/arm-none-eabi-gcc --version | head -n 1
+          cmake --version | head -n 1
+          echo "ninja $(ninja --version)"
+
+      # TOOLCHAIN_PREFIX points CMake at the downloaded compiler, so nothing
+      # depends on what happens to be on PATH.
+      - name: Build Debug
+        run: |
+          cmake -S . -B build/debug -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi-gcc.cmake \
+            -DTOOLCHAIN_PREFIX="$HOME/arm-gnu-toolchain/bin" \
+            -DCMAKE_BUILD_TYPE=Debug
+          cmake --build build/debug
+
+      - name: Build Release
+        run: |
+          cmake -S . -B build/release -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi-gcc.cmake \
+            -DTOOLCHAIN_PREFIX="$HOME/arm-gnu-toolchain/bin" \
+            -DCMAKE_BUILD_TYPE=Release
+          cmake --build build/release
+
+      - name: Size report
+        run: |
+          {
+            echo '### Firmware size'
+            echo '```'
+            ~/arm-gnu-toolchain/bin/arm-none-eabi-size build/debug/sentinel-tx.elf build/release/sentinel-tx.elf
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v7
+        with:
+          name: sentinel-tx-${{ github.sha }}
+          path: |
+            build/*/sentinel-tx.elf
+            build/*/sentinel-tx.bin
+            build/*/sentinel-tx.hex
+            build/*/sentinel-tx.map
+          if-no-files-found: error

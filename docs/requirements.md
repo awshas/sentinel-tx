@@ -115,10 +115,16 @@ number is never reused. Gaps in the sequence are expected.
 
 ### REQ_201:
 
-    The Sentinel-TX shall operate with a system clock of 170 MHz ±0.5 %.
+    While the external high-speed oscillator (HSE) is running, the
+    Sentinel-TX shall operate with a system clock of 170 MHz ±0.5 %.
 
     Rationale: Maximum SYSCLK for STM32G474 in voltage scaling range 1 boost
-    mode. Baud-rate and timer accuracy derive from it.
+    mode. Baud-rate and timer accuracy derive from it. The tolerance is only
+    achievable from the crystal (24 MHz, 20 ppm on the NUCLEO-G474RE). The
+    internal HSI16 used by the REQ_202 fallback is specified at
+    15.88-16.08 MHz at 30 degC plus -1 to +1 % drift over 0-85 degC
+    (DS12288 Rev 6, Table 43), so the fallback cannot meet it and is
+    excluded by the "While" clause.
     Verification: Test
     Method: MCO output routed to a pin, frequency measured on a counter or
             scope against a known reference.
