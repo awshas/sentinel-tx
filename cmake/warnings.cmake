@@ -19,7 +19,5 @@ target_compile_options(sentinel_warnings INTERFACE
         -Wshadow
         -Wdouble-promotion
         -Wundef
-        -Wl
-        --no-warn-rwx-segments  
     >
 )

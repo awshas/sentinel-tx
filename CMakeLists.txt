@@ -20,10 +20,21 @@ set(LINKER_SCRIPT "${CMAKE_SOURCE_DIR}/linker/STM32G474RETX_FLASH.ld")
 
 add_executable(sentinel-tx
     src/main.c
+    src/bsp/clock.c
     src/sys/startup_stm32g474.s
 )
 
 target_include_directories(sentinel-tx PRIVATE src)
+
+# SYSTEM suppresses warnings from third-party headers, so -Werror applies to
+# our code without CMSIS breaking the build.
+target_include_directories(sentinel-tx SYSTEM PRIVATE
+    third_party/CMSIS_5/CMSIS/Core/Include
+    third_party/cmsis_device_g4/Include
+)
+
+# Selects the device header behind the stm32g4xx.h umbrella.
+target_compile_definitions(sentinel-tx PRIVATE STM32G474xx)
 
 target_link_libraries(sentinel-tx PRIVATE sentinel_warnings)
 
@@ -35,9 +46,11 @@ target_compile_options(sentinel-tx PRIVATE
 
 target_link_options(sentinel-tx PRIVATE
     -T${LINKER_SCRIPT}
+    -nostartfiles
     -Wl,--gc-sections
     -Wl,-Map=$<TARGET_FILE_DIR:sentinel-tx>/sentinel-tx.map
     -Wl,--print-memory-usage
+    -Wl,--no-warn-rwx-segments
 )
 
 # LINK_DEPENDS: CMake does not treat the linker script as a build input.
