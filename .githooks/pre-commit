@@ -1,0 +1,31 @@
+#!/bin/sh
+# Refuse to commit C code that isn't clang-format clean.
+# Checks STAGED content, so partial staging (git add -p) behaves correctly.
+
+set -u
+
+# Staged files: Added, Copied, Modified. Deletions excluded (the file is gone).
+files=$(git diff --cached --name-only --diff-filter=ACM \
+        | grep -E '\.[ch]$' \
+        | grep -v '^third_party/' \
+        || true)
+
+# Nothing to check.
+[ -z "$files" ] && exit 0
+
+fail=0
+for f in $files; do
+    # ":$f" reads the file as it exists in the index, not on disk.
+    if ! git show ":$f" | clang-format --assume-filename="$f" --dry-run --Werror 2>/dev/null; then
+        echo "  not formatted: $f"
+        fail=1
+    fi
+done
+
+if [ "$fail" -ne 0 ]; then
+    echo ""
+    echo "Fix with:  clang-format -i <file>   then 'git add' it again."
+    exit 1
+fi
+
+exit 0
