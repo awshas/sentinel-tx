@@ -1,0 +1,10 @@
+{
+    // IntelliSense uses the exact flags, include paths (CMSIS) and defines
+    // (STM32G474xx) that CMake passes to the compiler.
+    "C_Cpp.default.compileCommands": "${workspaceFolder}/build/compile_commands.json",
+
+    // Lets you set breakpoints in startup_stm32g474.s. VS Code only allows
+    // breakpoints in languages a debugger has registered, and .s files open
+    // as plain text.
+    "debug.allowBreakpointsEverywhere": true
+}
