@@ -1,0 +1,21 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            // Runs before every debug launch (preLaunchTask), so you never flash
+            // a stale binary. Configures build/ the first time, then builds
+            // incrementally. Also Ctrl+Shift+B.
+            "label": "build",
+            "type": "shell",
+            "command": "(test -f build/CMakeCache.txt || cmake -S . -B build -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi-gcc.cmake) && cmake --build build",
+            "problemMatcher": {
+                "base": "$gcc",
+                "fileLocation": "autoDetect"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        }
+    ]
+}

@@ -1,0 +1,36 @@
+{
+    // Cortex-Debug starts its own OpenOCD, so close any OpenOCD you started in a
+    // terminal first: both want port 3333.
+    "version": "0.2.0",
+    "configurations": [
+        {
+            // Builds, flashes, resets, then stops on the first instruction of
+            // Reset_Handler: the same state as `monitor reset halt`.
+            "name": "Flash + stop at reset",
+            "type": "cortex-debug",
+            "request": "launch",
+            "servertype": "openocd",
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceFolder}/build/sentinel-tx.elf",
+            "configFiles": ["interface/stlink.cfg", "target/stm32g4x.cfg"],
+            "gdbPath": "gdb-multiarch",
+            "svdFile": "${workspaceFolder}/docs/refs/STM32G474.svd",
+            "preLaunchTask": "build",
+            "breakAfterReset": true
+        },
+        {
+            // Same, but runs through the startup code and stops at main().
+            "name": "Flash + run to main",
+            "type": "cortex-debug",
+            "request": "launch",
+            "servertype": "openocd",
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceFolder}/build/sentinel-tx.elf",
+            "configFiles": ["interface/stlink.cfg", "target/stm32g4x.cfg"],
+            "gdbPath": "gdb-multiarch",
+            "svdFile": "${workspaceFolder}/docs/refs/STM32G474.svd",
+            "preLaunchTask": "build",
+            "runToEntryPoint": "main"
+        }
+    ]
+}
