@@ -86,3 +86,8 @@ gdb-multiarch build/sentinel-tx.elf
 (gdb) break Reset_Handler
 (gdb) continue
 ```
+
+Format all the source code with `clang-format -i` :
+```
+find src/ -iname '*.h' -o -iname '*.c' | xargs clang-format -i
+```

@@ -26,6 +26,8 @@ set(LINKER_SCRIPT "${CMAKE_SOURCE_DIR}/linker/STM32G474RETX_FLASH.ld")
 add_executable(sentinel-tx
     src/main.c
     src/sys/startup_stm32g474.s
+    src/sys/systick/systick.c
+    src/sys/fault/fault.c
 )
 
 target_include_directories(sentinel-tx PRIVATE src)
