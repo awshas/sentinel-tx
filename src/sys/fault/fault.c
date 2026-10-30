@@ -11,3 +11,20 @@ __attribute__((noreturn)) void Error_Handler(void) {
     for (;;) {
     }
 }
+
+void fault_init(void);
+
+uint32_t fault_read(volatile uint32_t *reg);
+
+void fault_clear(volatile uint32_t *reg, uint8_t flag);
+
+void fault_log(volatile uint32_t *reg, uint8_t flag);
+
+__attribute__((noreturn)) void fault_sw_restart(void) {
+    __disable_irq();
+
+    SCB->AIRCR |= SCB_AIRCR_SYSRESETREQ_Msk; // Send software reset request.
+
+    for (;;) {
+    } // Waiting for reset to occur.
+}

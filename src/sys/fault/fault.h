@@ -12,8 +12,8 @@ It saves fault flags and can be read and written using the functions that are de
 
 This module MUST be initiated first in main before any other commands.*/
 
-#define CLK_FLAGS_REG (TAMP->BKP0R)
-#define NMI_FLAGS_REG (TAMP->BKP1R)
+#define CLK_FAULT_FLAGS_REG (TAMP->BKP0R)
+#define NMI_FAULT_FLAGS_REG (TAMP->BKP1R)
 
 enum clk_flags {
     CLK_HSI_FAULT,
@@ -21,7 +21,7 @@ enum clk_flags {
     CLK_PLL_OFF_FAULT,
     CLK_PLL_FAULT,
     CLK_SW_FAULT,
-    CLK_RESET
+    CLK_RESET // Software reset flag
 };
 
 enum nmi_flags { NMI_HSE_FAULT };
@@ -35,5 +35,7 @@ uint32_t fault_read(volatile uint32_t *reg);
 void fault_clear(volatile uint32_t *reg, uint8_t flag);
 
 void fault_log(volatile uint32_t *reg, uint8_t flag);
+
+__attribute__((noreturn)) void fault_sw_restart(void);
 
 #endif
