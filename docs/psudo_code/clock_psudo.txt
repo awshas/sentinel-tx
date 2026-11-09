@@ -1,0 +1,129 @@
+
+/*
+fault_init() will be called in main as the first function so clock.h/c have no business calling it.
+fault.h/c will contain the needed functions, variables and definitions for all the modules where the
+TAMP backup registers will be used as the status and error flags. In a full product there would be an external VBAT
+battery just for keeping these flags so one would bw able to debug faulty products.
+
+For now I will use these functions and definitions:
+fault_log(REG, FLAG/ERROR)
+REG is a defintion of a TAMP reg that is named for examlpe CLK_FLAGS.
+FLAG/ERROR is a defintion of a bit in the REG for example HSE_FAULT.
+The function itself is just a bit set so:
+
+CLK_FLAGS |= 1 << HSE_FAULT;
+
+*/
+
+The wait logic used in this code will be blocking
+
+
+// The clock.h/c psudo code
+
+enable TRCENA in the DEMCR register
+set DWT->CYCCNT to 0
+enable CYCCNTENA in the DWT->CTRL register to start te counter
+// now when using the wait we can use the DWT to measure timeouts less than 1 ms.
+
+set PWREN bit in RCC_APB1ENR1 register to start the pwr clk and enable the change of boost mode
+Read RCC_APB1ENR1 to confirm change
+// Now the presets for 170MHz are ready
+
+systick_init(clock_hclk_hz())
+If RESET_LOOP is set:
+    fault_clear(CLK_FLAGS, RESET_LOOP)
+    jump to DEFAULT_STATE
+
+
+if pll off jump to PLL_OFF
+
+PLL_ON:
+switch to sys_clk to HSI
+wait for switch, if timeout jump to HSI_FAULT. Use DWT with a generous amount of cycles
+systick_init(clock_hclk_hz())
+turn pll off by clearing the PLLON bit in RCC_CR
+wait until the PLLRDY bit in RCC_CR is cleared (max 100ms) , if timeout jump to PLL_OFF_FAULT
+jump to PLL_OFF
+
+PLL_OFF_FAULT:
+fault_log(CLK_FLAGS, PLL_OFF_FAULT)
+fault_log(CLK_FLAGS, RESET_LOOP)
+jump to RESTART
+
+HSI_FAULT:
+fault_log(CLK_FLAGS, HSI_FAULT)
+fault_log(CLK_FLAGS, RESET_LOOP)
+jump to RESTART
+
+
+PLL_OFF:
+enable HSE by setting HSEON
+// no systick_init needed because no switch has happend
+wait for HSERDY bit to ensure HSE is stable (max 100ms, jump HSE_FAULT if timeout)
+enable CSS by setting CSSON
+set HSE as PLL input
+set PLLM to 6
+jump PLL_CONFIG
+
+//if something gets stuck and a wait loop goes over 100ms
+HSE_FAULT:
+fault_log(CLK_FLAGS, HSE_FAULT)
+disable HSE
+set HSI as PLL input
+set PLLM to 4
+
+PLL_CONFIG:
+set PLLN to 85
+set PLLR to 2
+Turn on PLL
+wait for pll to be stable (check PLLRDY flag, max 100ms, jump PLL_FAULT if timeout)
+Turn on PLLR by setting the PLLREN bit
+
+Set ahb(HPRE) to divide by 2
+set apb1(PPRE1) to divide by 1
+set apb2(PPRE2) to divide by 1
+read that ahb changed
+set voltage to boost mode by clearing R1MODE bit in PWR_CR5 register(reset value of PWR_CR1 is range 1)
+read PWR_CR5 to ensure change
+set wait states to 4 WS (5 CPU cycles) in the FLASH_ACR register
+read FLASH_ACR to ensure change
+switch sysclk to PLL (SW set to 11)
+wait for clock switch (check SWS flag, jump CLK_SW_FAULT if timeout) use DWT with a generous number of cycles
+wait for a minimum of 1us using DWT (1us is 85 clk cycles in 85MHz)
+set ahb(HPRE) to to default value
+read that ahb changed
+jump done
+
+
+CLK_SW_FAULT:
+fault_log(CLK_FLAGS, CLK_SW_FAULT)
+switch sysclk to HSI
+wait for clock switch (check flag, jump HSI_FAULT if timeout) use DWT with a generous number of cycles
+jump DEFAULT_STATE
+
+PLL_FAULT:
+fault_log(CLK_FLAGS, PLL_FAULT)
+
+DEFAULT_STATE:
+turn off pll
+turn off HSE
+set ahb to default value
+set apb1/2 to default values
+read that ahb changed
+set wait states to 0 WS (1 CPU cycles) in the FLASH_ACR register
+check that the new WS value is changed by reading the FLASH_ACR register
+set voltage to normal mode by setting R1MODE bit in PWR_CR5 register(reset value of PWR_CR1 is range 1)
+read PWR_CR5 to ensure change
+jump done
+
+RESTART:
+set SYSRESETREQ bit in AIRCR register
+wait for reset
+
+NMI_HANDLER:
+clear CSSC
+fault_log(NMI_FLAGS, HSE_FAULT)
+systick_init(clock_hclk_hz()) // This does pose a small risk of being ignored if main or another function is in the middle of executing systick_init() but it is accepted
+
+done:
+systick_init(clock_hclk_hz())

@@ -28,6 +28,7 @@ add_executable(sentinel-tx
     src/sys/startup_stm32g474.s
     src/sys/systick/systick.c
     src/sys/fault/fault.c
+    src/bsp/clock/clock.c
 )
 
 target_include_directories(sentinel-tx PRIVATE src)
